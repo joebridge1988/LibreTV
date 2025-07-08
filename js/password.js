@@ -3,12 +3,12 @@
 // 如果 sha256 函数在当前文件中定义，则无需此导入
 // import { sha256 } from '../js/sha256.js'; // 原始文件中有此行，保留
 
-// 假设 PASSWORD_CONFIG 在其他地方定义并可用，例如：
-const PASSWORD_CONFIG = {
-    localStorageKey: 'password_verified',
-    adminLocalStorageKey: 'admin_password_verified',
-    verificationTTL: 24 * 60 * 60 * 1000 // 验证有效期，例如 1 天
-};
+// 移除了 const PASSWORD_CONFIG = {...} 声明。
+// 根据您的 HTML 结构 (index.html 先加载 config.js，再加载 password.js)，
+// 并且控制台报错 'PASSWORD_CONFIG' has already been declared，
+// 这表明 PASSWORD_CONFIG 应该已经在 config.js 中定义并全局可用。
+// 因此，password.js 不应再次声明它。
+
 
 // 密码保护功能
 
@@ -75,6 +75,7 @@ async function verifyPassword(username, password, passwordType = 'PASSWORD') {
 
         if (isValid) {
             // 如果验证成功，将验证状态存储到 localStorage
+            // 此时，PASSWORD_CONFIG 应该已经在全局作用域中可用
             const storageKey = passwordType === 'PASSWORD'
                 ? PASSWORD_CONFIG.localStorageKey
                 : PASSWORD_CONFIG.adminLocalStorageKey;
@@ -124,7 +125,7 @@ function isVerified(passwordType = 'PASSWORD') {
         const currentHash = window.__ENV__?.[passwordType];
         const currentUsername = window.__ENV__?.USERNAME; // 获取当前期望的用户名
 
-        console.log('DEBUG: isVerified - Stored Timestamp:', timestamp, 'Stored Hash:', storedHash, 'Stored Username:', storedUsername);
+        console.log('DEBUG: isVerified - Stored Timestamp:', timestamp, 'Stored Hash:', passwordHash, 'Stored Username:', storedUsername);
         console.log('DEBUG: isVerified - Current Hash:', currentHash, 'Current Username:', currentUsername);
         console.log('DEBUG: isVerified - Verification TTL:', PASSWORD_CONFIG.verificationTTL);
 
