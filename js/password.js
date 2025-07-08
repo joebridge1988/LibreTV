@@ -29,7 +29,12 @@ function isPasswordProtected() {
     const isAdminPwdValid = typeof adminPwd === 'string' && adminPwd.length === 64 && !/^0+$/.test(adminPwd);
 
     // 只有当设置了用户名，并且普通密码或管理员密码有效时，才认为启用了密码保护
-    return isUsernameValid && (isPwdValid || isAdminPwdValid);
+    const result = isUsernameValid && (isPwdValid || isAdminPwdValid);
+    console.log('DEBUG: isPasswordProtected() result:', result, 'usernameValid:', isUsernameValid, 'pwdValid:', isPwdValid, 'adminPwdValid:', isAdminPwdValid);
+    console.log('DEBUG: window.__ENV__.USERNAME:', username);
+    console.log('DEBUG: window.__ENV__.PASSWORD:', pwd);
+    console.log('DEBUG: window.__ENV__.ADMINPASSWORD:', adminPwd);
+    return result;
 }
 
 window.isPasswordProtected = isPasswordProtected;
@@ -46,8 +51,14 @@ async function verifyPassword(username, password, passwordType = 'PASSWORD') {
         const correctUsername = window.__ENV__?.USERNAME; // 获取正确的用户名
         const correctHash = window.__ENV__?.[passwordType]; // 获取正确的密码哈希
 
+        console.log(`DEBUG: verifyPassword for ${passwordType} - Input Username: "${username}", Input Password Length: ${password.length}`);
+        console.log(`DEBUG: verifyPassword - Expected Username: "${correctUsername}", Expected Hash: "${correctHash}"`);
+
         // 如果用户名或密码哈希未设置，则直接返回 false
-        if (!correctUsername || !correctHash) return false;
+        if (!correctUsername || !correctHash) {
+            console.log('DEBUG: verifyPassword - Correct username or hash not set.');
+            return false;
+        }
 
         // 检查用户名是否匹配
         if (username !== correctUsername) {
@@ -57,8 +68,10 @@ async function verifyPassword(username, password, passwordType = 'PASSWORD') {
 
         // 计算输入密码的哈希值
         const inputHash = await sha256(password);
+        console.log('DEBUG: verifyPassword - Input Hash:', inputHash);
         // 检查密码哈希是否匹配
         const isValid = inputHash === correctHash;
+        console.log('DEBUG: verifyPassword - Is Valid:', isValid);
 
         if (isValid) {
             // 如果验证成功，将验证状态存储到 localStorage
@@ -72,6 +85,7 @@ async function verifyPassword(username, password, passwordType = 'PASSWORD') {
                 passwordHash: correctHash,
                 username: correctUsername // 新增：存储验证成功的用户名
             }));
+            console.log(`DEBUG: ${passwordType} verified and stored in localStorage.`);
         }
         return isValid;
     } catch (error) {
@@ -88,23 +102,37 @@ async function verifyPassword(username, password, passwordType = 'PASSWORD') {
  */
 function isVerified(passwordType = 'PASSWORD') {
     try {
+        console.log(`DEBUG: Checking isVerified for ${passwordType}.`);
         // 如果未启用密码保护，则认为已验证
-        if (!isPasswordProtected()) return true;
+        if (!isPasswordProtected()) {
+            console.log('DEBUG: isVerified - Password protection not enabled, returning true.');
+            return true;
+        }
 
         const storageKey = passwordType === 'PASSWORD'
             ? PASSWORD_CONFIG.localStorageKey
             : PASSWORD_CONFIG.adminLocalStorageKey;
 
         const stored = localStorage.getItem(storageKey);
-        if (!stored) return false;
+        console.log('DEBUG: isVerified - Stored item:', stored);
+        if (!stored) {
+            console.log('DEBUG: isVerified - No stored item, returning false.');
+            return false;
+        }
 
         const { timestamp, passwordHash, username: storedUsername } = JSON.parse(stored);
         const currentHash = window.__ENV__?.[passwordType];
         const currentUsername = window.__ENV__?.USERNAME; // 获取当前期望的用户名
 
+        console.log('DEBUG: isVerified - Stored Timestamp:', timestamp, 'Stored Hash:', storedHash, 'Stored Username:', storedUsername);
+        console.log('DEBUG: isVerified - Current Hash:', currentHash, 'Current Username:', currentUsername);
+        console.log('DEBUG: isVerified - Verification TTL:', PASSWORD_CONFIG.verificationTTL);
+
         // 验证时间戳、密码哈希和用户名是否都匹配
-        return timestamp && passwordHash === currentHash && storedUsername === currentUsername &&
+        const result = timestamp && passwordHash === currentHash && storedUsername === currentUsername &&
             Date.now() - timestamp < PASSWORD_CONFIG.verificationTTL;
+        console.log('DEBUG: isVerified - Final result:', result);
+        return result;
     } catch (error) {
         console.error(`检查${passwordType}验证状态时出错:`, error);
         return false;
@@ -138,9 +166,10 @@ async function sha256(message) {
 function showPasswordModal() {
     const passwordModal = document.getElementById('passwordModal');
     if (passwordModal) {
+        console.log('DEBUG: showPasswordModal() called. Displaying modal.');
         // 防止出现豆瓣区域滚动条
-        document.getElementById('doubanArea').classList.add('hidden');
-        document.getElementById('passwordCancelBtn').classList.add('hidden');
+        document.getElementById('doubanArea')?.classList.add('hidden'); // 使用可选链操作符
+        document.getElementById('passwordCancelBtn')?.classList.add('hidden'); // 使用可选链操作符
 
         passwordModal.style.display = 'flex';
 
@@ -158,6 +187,8 @@ function showPasswordModal() {
                 }
             }
         }, 100);
+    } else {
+        console.error('DEBUG: showPasswordModal() called but #passwordModal not found!');
     }
 }
 
@@ -167,6 +198,7 @@ function showPasswordModal() {
 function hidePasswordModal() {
     const passwordModal = document.getElementById('passwordModal');
     if (passwordModal) {
+        console.log('DEBUG: hidePasswordModal() called. Hiding modal.');
         // 隐藏密码错误提示
         hidePasswordError();
 
@@ -180,7 +212,7 @@ function hidePasswordModal() {
 
         // 如果启用豆瓣区域则显示豆瓣区域
         if (localStorage.getItem('doubanEnabled') === 'true') {
-            document.getElementById('doubanArea').classList.remove('hidden');
+            document.getElementById('doubanArea')?.classList.remove('hidden');
             // 假设 initDouban() 是一个存在的函数
             if (typeof initDouban === 'function') {
                 initDouban();
@@ -195,6 +227,7 @@ function hidePasswordModal() {
 function showPasswordError() {
     const errorElement = document.getElementById('passwordError');
     if (errorElement) {
+        console.log('DEBUG: showPasswordError() called.');
         errorElement.classList.remove('hidden');
     }
 }
@@ -205,6 +238,7 @@ function showPasswordError() {
 function hidePasswordError() {
     const errorElement = document.getElementById('passwordError');
     if (errorElement) {
+        console.log('DEBUG: hidePasswordError() called.');
         errorElement.classList.add('hidden');
     }
 }
@@ -213,6 +247,7 @@ function hidePasswordError() {
  * 处理密码提交事件（异步）
  */
 async function handlePasswordSubmit() {
+    console.log('DEBUG: handlePasswordSubmit() called.');
     const usernameInput = document.getElementById('usernameInput'); // 获取用户名输入框
     const passwordInput = document.getElementById('passwordInput'); // 获取密码输入框
 
@@ -221,11 +256,13 @@ async function handlePasswordSubmit() {
 
     // 调用 verifyPassword，传入用户名和密码
     if (await verifyPassword(username, password, 'PASSWORD')) {
+        console.log('DEBUG: handlePasswordSubmit - Password verified successfully.');
         hidePasswordModal();
 
         // 触发密码验证成功事件
         document.dispatchEvent(new CustomEvent('passwordVerified'));
     } else {
+        console.log('DEBUG: handlePasswordSubmit - Password verification failed.');
         showPasswordError();
         // 清空密码输入框，并重新聚焦到用户名输入框
         if (passwordInput) passwordInput.value = '';
@@ -238,7 +275,9 @@ async function handlePasswordSubmit() {
  */
 // 修改initPasswordProtection函数
 function initPasswordProtection() {
+    console.log('DEBUG: initPasswordProtection() called.');
     if (!isPasswordProtected()) {
+        console.log('DEBUG: initPasswordProtection - Password protection not enabled, returning.');
         return;
     }
     
@@ -247,33 +286,48 @@ function initPasswordProtection() {
                               window.__ENV__.PASSWORD.length === 64 &&
                               !/^0+$/.test(window.__ENV__.PASSWORD);
     
+    console.log('DEBUG: initPasswordProtection - hasNormalPassword:', hasNormalPassword);
+    console.log('DEBUG: initPasswordProtection - isPasswordVerified():', isPasswordVerified());
+
     // 只有当设置了普通密码且未验证时才显示密码框
     // 现在也需要检查用户名是否已验证
     if (hasNormalPassword && !isPasswordVerified()) {
+        console.log('DEBUG: initPasswordProtection - Conditions met to show modal.');
         showPasswordModal();
+    } else {
+        console.log('DEBUG: initPasswordProtection - Conditions NOT met to show modal.');
     }
     
     // 设置按钮事件监听
     const settingsBtn = document.querySelector('[onclick="toggleSettings(event)"]');
     if (settingsBtn) {
+        console.log('DEBUG: initPasswordProtection - Settings button found.');
         settingsBtn.addEventListener('click', function(e) {
+            console.log('DEBUG: Settings button clicked.');
             // 只有当设置了普通密码且未验证时才拦截点击
             // 现在也需要检查用户名是否已验证
             if (hasNormalPassword && !isPasswordVerified()) {
+                console.log('DEBUG: Settings button click - Conditions met to show modal.');
                 e.preventDefault();
                 e.stopPropagation();
                 showPasswordModal();
                 return;
             }
-            
+            console.log('DEBUG: Settings button click - Conditions NOT met to show modal.');
         });
+    } else {
+        console.log('DEBUG: initPasswordProtection - Settings button not found.');
     }
 }
 
 // 设置按钮密码框验证（管理员密码）
 function showAdminPasswordModal() {
+    console.log('DEBUG: showAdminPasswordModal() called.');
     const passwordModal = document.getElementById('passwordModal');
-    if (!passwordModal) return;
+    if (!passwordModal) {
+        console.error('DEBUG: showAdminPasswordModal() called but #passwordModal not found!');
+        return;
+    }
 
     // 清空用户名和密码输入框
     const usernameInput = document.getElementById('usernameInput');
@@ -285,7 +339,7 @@ function showAdminPasswordModal() {
     const title = passwordModal.querySelector('h2');
     if (title) title.textContent = '管理员验证';
 
-    document.getElementById('passwordCancelBtn').classList.remove('hidden');
+    document.getElementById('passwordCancelBtn')?.classList.remove('hidden');
     passwordModal.style.display = 'flex';
 
     // 设置表单提交处理
@@ -293,11 +347,13 @@ function showAdminPasswordModal() {
     if (form) {
         form.onsubmit = async function (e) {
             e.preventDefault();
+            console.log('DEBUG: Admin password form submitted.');
             const username = document.getElementById('usernameInput').value.trim(); // 获取用户名
             const password = document.getElementById('passwordInput').value.trim();
             
             // 调用 verifyPassword，传入用户名和密码，并指定为 ADMINPASSWORD 类型
             if (await verifyPassword(username, password, 'ADMINPASSWORD')) {
+                console.log('DEBUG: Admin password verified successfully.');
                 passwordModal.style.display = 'none';
                 // 假设 settingsPanel 是一个存在的元素
                 const settingsPanel = document.getElementById('settingsPanel');
@@ -305,6 +361,7 @@ function showAdminPasswordModal() {
                     settingsPanel.classList.add('show');
                 }
             } else {
+                console.log('DEBUG: Admin password verification failed.');
                 showPasswordError();
             }
         };
@@ -313,19 +370,19 @@ function showAdminPasswordModal() {
 
 // 在页面加载完成后初始化密码保护
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('DEBUG: DOMContentLoaded event fired. Initializing password protection.');
     initPasswordProtection();
 });
 
 // SHA-256实现，可用Web Crypto API (如果原始文件中有，这里就不重复定义了，确保它只出现一次)
 // 如果原始文件已经导入了 sha256，并且它是一个全局函数或模块导出，则无需再次定义。
 // 这里的 sha256 函数是原始文件中提供的，为了完整性再次包含。
-// 请确保您的项目中 sha256 函数的定义不会重复。
 /*
 async function sha256(message) {
     if (window.crypto && crypto.subtle && crypto.subtle.digest) {
         const msgBuffer = new TextEncoder().encode(message);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        const hashArray = Array.from(new Uint8Narray(hashBuffer));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
     // HTTP 下调用原始 js‑sha256
